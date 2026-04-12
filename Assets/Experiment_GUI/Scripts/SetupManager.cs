@@ -19,6 +19,10 @@ public class SetupManager : MonoBehaviour
             input.warning.text = string.Empty;
         }
     }
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.Space)) StartExperimentButton();
+    }
     public void StartExperimentButton()
     {
         List<float> inputValues = new List<float>();

@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 
 public class ExperimentManager : MonoBehaviour
@@ -23,6 +24,7 @@ public class ExperimentManager : MonoBehaviour
     [SerializeField] private List<RectTransform> stimuliSpawnLocations = new List<RectTransform>();
     [SerializeField] private GameObject experimentPanel;
     [SerializeField] private GameObject menuPanel;
+    [SerializeField] private TMP_Text infoText;
     [SerializeField] private GameObject stimuliPrefab;
     [SerializeField] private GameObject cuePrefab;
 
@@ -30,7 +32,6 @@ public class ExperimentManager : MonoBehaviour
     private List<float> stimuliParameters = new List<float>();
     private List<GameObject> spawnedStimulus = new List<GameObject>();
     private List<GameObject> spawnedCue = new List<GameObject>();
-    private Coroutine experimentCoroutine;
     private ExperimentReport report;
     private bool isExperimentRunning;
 
@@ -38,6 +39,16 @@ public class ExperimentManager : MonoBehaviour
     {
         experimentParameters.Clear();
         stimuliParameters.Clear();
+        foreach (var stimulus in spawnedStimulus)
+        {
+            Destroy(stimulus);
+        }
+        foreach (var cue in spawnedCue)
+        {
+            Destroy(cue);
+        }
+        spawnedStimulus.Clear();
+        spawnedCue.Clear();
         for (int i = 0; i < parameters.Count; i++)
         {
             if (i < 4) stimuliParameters.Add(parameters[i]);
@@ -52,12 +63,18 @@ public class ExperimentManager : MonoBehaviour
         experimentPanel.SetActive(true);
         report = new ExperimentReport();
         isExperimentRunning = true;
-        experimentCoroutine = StartCoroutine(ExperimentRoutine());
+        StartCoroutine(ExperimentRoutine());
     }
     public IEnumerator ExperimentRoutine()
     {
-        yield return new WaitForSeconds(2); //PRE-EXPERIMENT WAIT
         report.RecordExperimentStart();
+        int experimentStartDelay = 5; //PRE-EXPERIMENT COUNTDOWN
+        while (experimentStartDelay > 0)
+        {
+            StartCoroutine(InfoTextRoutine($"Experiment starting in {experimentStartDelay} seconds...", 1f));
+            yield return new WaitForSeconds(1);
+            experimentStartDelay--;
+        }
         int firstSpawnIndex = 0;
         for (int i = 0; i < experimentParameters[5]; i++) //BLOCK REPEATER
         {
@@ -112,7 +129,6 @@ public class ExperimentManager : MonoBehaviour
                     spawnedCue[s].SetActive(true);
                     yield return new WaitForSeconds(experimentParameters[0]); //CUE
                     spawnedCue[s].SetActive(false);
-
                     report.RecordStimulusStart(i, s, j, stimuliParameters[s]);
                     spawnedStimulus[s].SetActive(true);
                     yield return new WaitForSeconds(experimentParameters[1]); //STIMULUS
@@ -125,11 +141,16 @@ public class ExperimentManager : MonoBehaviour
 
             report.RecordBlockEnd(i);
             firstSpawnIndex++;
-            yield return new WaitForSeconds(experimentParameters[3]); //BLOCK REST
+
+            if (i < experimentParameters[5] - 1) yield return new WaitForSeconds(experimentParameters[3]); //BLOCK REST
+            else yield return null;
         }
 
         report.RecordExperimentEnd();
-        yield return new WaitForSeconds(5);
+        StartCoroutine(InfoTextRoutine("Experiment completed successfully! Saving report...", 3f));
+        yield return new WaitForSeconds(3);
+        StartCoroutine(InfoTextRoutine("Thanks for your patience and contribution!", 7f));
+        yield return new WaitForSeconds(7);
         StopExperimentProcedure(true);
     }
     private void Update()
@@ -148,9 +169,16 @@ public class ExperimentManager : MonoBehaviour
         {
             report.SaveToFile();
         }
-        StopCoroutine(experimentCoroutine);
+        StopAllCoroutines();
+        infoText.text = string.Empty;
         //HANDLE UI HERE
         menuPanel.SetActive(true);
         experimentPanel.SetActive(false);
+    }
+    private IEnumerator InfoTextRoutine(string message, float duration)
+    {
+        infoText.text = message;
+        yield return new WaitForSeconds(duration);
+        infoText.text = string.Empty;
     }
 }
